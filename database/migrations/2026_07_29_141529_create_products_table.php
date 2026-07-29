@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->unsignedBigInteger('price'); // harga normal
-            $table->unsignedBigInteger('flash_slae_price')->nullable(); // harga flash sale
+            $table->unsignedBigInteger('flash_sale_price')->nullable(); // harga flash sale
             $table->boolean('is_flash_sale')->default(false);
             $table->integer('stock'); // inventory, tidak boleh minus
             $table->timestamps();
