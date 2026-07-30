@@ -7,7 +7,7 @@
     "rewrites": [
         {
             "src": "/(.*)",
-            "dest": "/api/index.php"
+            "destination": "/api/index.php"
         }
     ],
     "env": {
