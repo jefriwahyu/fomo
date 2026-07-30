@@ -1,59 +1,143 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Fullstack Engineer Assessment Test
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Repositori ini berisi solusi untuk 2 task: **Online Store API** dan **Hidden Item Game**.
 
-## About Laravel
+**API sudah publicly accessible di:**
+`https://fomo-three-bice.vercel.app/api/api`
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+> Catatan: prefix `/api` muncul dua kali karena konfigurasi rewrite di Vercel. Contoh: `GET /api/api/products`.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Requirement
 
-## Learning Laravel
+- PHP 8.3, Laravel 12
+- Composer
+- PostgreSQL
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Instalasi (Lokal)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-## Laravel Sponsors
+Isi kredensial database PostgreSQL di `.env`:
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=fomo_store
+DB_USERNAME=postgres
+DB_PASSWORD=
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+php artisan migrate
+php artisan serve
+```
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Task 1: Online Store API
 
-## Contributing
+### Endpoints
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Method | Endpoint            | Deskripsi                    |
+|--------|----------------------|-------------------------------|
+| GET    | `/api/products`      | List semua produk             |
+| GET    | `/api/products/{id}` | Detail produk                 |
+| POST   | `/api/products`      | Buat produk baru               |
+| POST   | `/api/orders`        | Buat order baru                |
+| GET    | `/api/orders/{id}`   | Detail order                   |
 
-## Code of Conduct
+Contoh body `POST /api/orders`:
+```json
+{
+    "items": [
+        { "product_id": 1, "quantity": 2 }
+    ]
+}
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Race Condition Handling
 
-## Security Vulnerabilities
+Implementasi ada di `app/Http/Controllers/Api/OrderController.php`. Setiap pembuatan
+order dibungkus dalam `DB::transaction()`, dan row produk dikunci dengan
+`lockForUpdate()` sebelum stok dibaca dan dikurangi. Pengecekan stok dilakukan
+**setelah** lock didapat, sehingga tidak ada dua request yang bisa membaca nilai
+stok yang sama secara bersamaan (mencegah stale read dan overselling).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Menjalankan Functional Test (Race Condition)
 
-## License
+Pastikan server berjalan (`php artisan serve`), lalu:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan race:test-curl --stock=5 --requests=20
+```
+
+Command ini men-generate satu produk uji dengan stok terbatas, lalu mengirim
+N request pembelian secara bersamaan (menggunakan `curl_multi`) ke endpoint
+yang sama. Di akhir, ia memverifikasi bahwa:
+- Jumlah order yang berhasil **tidak melebihi** stok awal
+- Stok akhir di database **tidak pernah negatif**
+
+Contoh output:
+```
+Successful orders : 5
+Failed orders     : 15
+Final stock in DB : 0
+PASS: No overselling occurred.
+```
+
+---
+
+## Task 2: Hidden Item Game
+
+Program CLI yang mensimulasikan pencarian item tersembunyi dalam grid dengan
+obstacle. Pemain bergerak sesuai urutan tetap: Utara → Timur → Selatan.
+
+### Menjalankan
+
+```bash
+php artisan game:hidden-item {utara} {timur} {selatan}
+```
+
+Contoh:
+```bash
+php artisan game:hidden-item 2 3 1
+```
+
+### Cara Kerja & Asumsi
+
+Grid didefinisikan di dalam `app/Console/Commands/HiddenItemGame.php`. Karena
+soal menyebut "item tersembunyi di salah satu titik jalur bebas" (bentuk jamak
+dari kemungkinan lokasi), program ini menganggap **setiap titik jalur bebas
+yang dilalui pemain** selama pergerakan (bukan cuma titik akhir) sebagai
+kandidat lokasi item. Jika pemain terhalang obstacle sebelum menyelesaikan
+semua langkah yang diminta pada satu arah, pergerakan di fase itu berhenti
+lebih awal dan program mencatatnya, lalu tetap melanjutkan ke fase berikutnya
+dari posisi terakhir yang berhasil dicapai.
+
+Output program menampilkan:
+1. Ringkasan langkah yang diminta vs. yang berhasil dicapai per arah
+2. Daftar koordinat kandidat lokasi item
+3. Visualisasi grid dengan simbol `$` pada titik-titik tersebut (bonus)
+
+---
+
+## Struktur Proyek Singkat
+
+```
+app/Console/Commands/
+  ├── HiddenItemGame.php          # Task 2
+  ├── TestRaceConditionCurl.php   # Functional test race condition (Task 1)
+app/Http/Controllers/Api/
+  ├── ProductController.php
+  ├── OrderController.php         # Berisi logic locking
+app/Models/
+  ├── Product.php
+  ├── Order.php
+  ├── OrderItem.php
+```
