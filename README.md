@@ -1,4 +1,4 @@
-# Fullstack Engineer Assessment Test
+# Fullstack Developer
 
 Repositori ini berisi solusi untuk 2 task: **Online Store API** dan **Hidden Item Game**.
 
