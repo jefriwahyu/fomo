@@ -1,4 +1,4 @@
-# Fullstack Developer
+# Fullstack Developer Assesment
 
 Repositori ini berisi solusi untuk 2 task: **Online Store API** dan **Hidden Item Game**.
 
