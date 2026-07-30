@@ -86,11 +86,11 @@ class TestRaceConditionCurl extends Command
         $isValid = $finalStock >= 0 && $successCount === $initialStock;
 
         if ($isValid) {
-            $this->info("✅ PASS: No overselling occurred. Stock never went negative.");
+            $this->info("PASS: No overselling occurred. Stock never went negative.");
             return self::SUCCESS;
         }
 
-        $this->error("❌ FAIL: Race condition detected! Stock went negative or oversold.");
+        $this->error("FAIL: Race condition detected! Stock went negative or oversold.");
         return self::FAILURE;
     }
 }
