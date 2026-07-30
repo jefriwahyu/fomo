@@ -14,7 +14,7 @@ class TestRaceConditionCurl extends Command
     {
         $initialStock = (int) $this->option('stock');
         $totalRequests = (int) $this->option('requests');
-        $baseUrl = config('app.url', 'http://127.0.0.1:8000');
+        $baseUrl = 'https://fomo-three-bice.vercel.app/api';
 
         // 1. Setup: buat/reset produk flash sale dengan stok terbatas
         $product = Product::updateOrCreate(
